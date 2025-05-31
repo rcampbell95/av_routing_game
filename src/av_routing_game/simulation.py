@@ -5,7 +5,9 @@ import numpy as np
 
 
 if __name__ == "__main__":
-    env = RoutingEnv(size=10, num_agents=50)
+    env = RoutingEnv(size=2, num_agents=1)
+
+    MAX_EDGES_PER_INTERSECTION = 4
 
     observation, info = env.reset()
 
@@ -13,10 +15,11 @@ if __name__ == "__main__":
     actions = {0: 0, 1: 0}
 
     while not all(dones.values()):
-        action = np.random.randint(0, 8)
+        action = np.random.randint(0, MAX_EDGES_PER_INTERSECTION * 2)
         if "congestion" in observation:
-            vehicle_type = np.argmax(observation["congestion"])
-            action = vehicle_type * 4
+            direction = np.random.randint(0, 4)
+            vehicle_type = np.argmax(observation["congestion"][direction])
+            action = MAX_EDGES_PER_INTERSECTION * vehicle_type + direction
 
             actions[vehicle_type] += 1
 
