@@ -8,12 +8,12 @@ import networkx as nx
 
 
 class RoutingEnv(gym.Env):
-    def __init__(self, render_mode=None, size=2, num_agents=10):
+    def __init__(self, render_mode=None, target=None, size=2, num_agents=10):
+        if not target:
+            self.target = size ** 2 - 1
         self.size = size
-        self.target = self.size - 1
         self.num_agents = num_agents
         self.current_agent = 0
-        self.target = size - 1
 
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent):
@@ -81,19 +81,21 @@ class RoutingEnv(gym.Env):
         if self.past_action[self.current_agent]:
             past_road = self.past_action[self.current_agent]["location"]
             past_action = self.past_action[self.current_agent]["action"]  
-            if past_action >= 0 and past_action <= 3:
+            if past_action // 4 == 0:
                 self.vehicle_counts[past_road][0][0] -= 1 #max(self.vehicle_counts[past_road][0][0] - 1, 1)
-            elif past_action <= 7:
+            elif past_action // 4 == 1:
                 # add extra edges
                 self.vehicle_counts[past_road][0][1] -= 1 #max(self.vehicle_counts[past_road][0][1] - 1, 1) 
         
+            self.past_action[self.current_agent] = None
         # Finish step without update if
             # The current agent is done
             # If the current step is less than the agent start time
             # If the action is invalid
         if self.dones[self.current_agent] or self.env_step < self.start_time[self.current_agent] or not self.validate_action(current_location, action):
             self.current_agent = (self.current_agent + 1) % self.num_agents
-            self.env_step += 1    
+            self.env_step += 1
+            self.dones[self.current_agent] = self.dones[self.current_agent] or self.agent_locations[self.current_agent] == self.target 
             return observation, 0, self.dones, None, {}   
         
         for route in self.congestion_per_route:
@@ -120,9 +122,10 @@ class RoutingEnv(gym.Env):
         truncated = None    
         self.past_action[self.current_agent] = {"location": road_to_next_location, "action": action} 
         
+        print(self.agent_locations, self.target)
         if self.agent_locations[self.current_agent] == self.target:
             self.dones[self.current_agent] = True
-            self.past_action[self.current_agent] = None   
+            #self.past_action[self.current_agent] = None   
         
         observation = {}    
         if not self.dones[self.current_agent]:

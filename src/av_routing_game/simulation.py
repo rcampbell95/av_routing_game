@@ -5,16 +5,20 @@ import numpy as np
 
 
 if __name__ == "__main__":
-    env = RoutingEnv(size=2, num_agents=1)
+    env = RoutingEnv(size=2, num_agents=500)
 
     MAX_EDGES_PER_INTERSECTION = 4
+    MAX_STEPS = 10000
 
     observation, info = env.reset()
 
     dones = {0: False}
     actions = {0: 0, 1: 0}
 
-    while not all(dones.values()):
+    step = 0
+    action_map = {0: "left", 1: "up", 2: "right", 3: "down"}
+
+    while not all(dones.values()) and step < MAX_STEPS:
         action = np.random.randint(0, MAX_EDGES_PER_INTERSECTION * 2)
         if "congestion" in observation:
             direction = np.random.randint(0, 4)
@@ -24,6 +28,13 @@ if __name__ == "__main__":
             actions[vehicle_type] += 1
 
         observation, reward, dones, truncated, info = env.step(action)
+        step = env.env_step
+
+        print(action_map[action % 4])
+        print(env.vehicle_counts)
+        print(env.agent_locations)
+        print(env.dones)
+        print("\n")
 
     total_rewards = []
     for rewards in env.rewards.values():
