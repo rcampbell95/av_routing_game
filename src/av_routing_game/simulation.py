@@ -1,14 +1,16 @@
 from av_routing_game.env import RoutingEnv
+from av_routing_game.policies import BeelinePolicy
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 
 if __name__ == "__main__":
-    env = RoutingEnv(size=2, num_agents=500)
+    network_size = 3
+    env = RoutingEnv(size=network_size, num_agents=200)
 
     MAX_EDGES_PER_INTERSECTION = 4
-    MAX_STEPS = 10000
+    MAX_STEPS = 100000
 
     observation, info = env.reset()
 
@@ -18,23 +20,19 @@ if __name__ == "__main__":
     step = 0
     action_map = {0: "left", 1: "up", 2: "right", 3: "down"}
 
-    while not all(dones.values()) and step < MAX_STEPS:
-        action = np.random.randint(0, MAX_EDGES_PER_INTERSECTION * 2)
-        if "congestion" in observation:
-            direction = np.random.randint(0, 4)
-            vehicle_type = np.argmax(observation["congestion"][direction])
-            action = MAX_EDGES_PER_INTERSECTION * vehicle_type + direction
+    manual_policy = BeelinePolicy(target=network_size ** 2 - 1, grid_size=network_size)
 
-            actions[vehicle_type] += 1
+    while not all(dones.values()) and step < MAX_STEPS:
+        current_agent = env.current_agent
+        agent_location = observation["position"]
+        outgoing_edges = env.road_network.edges(agent_location)
+        congestion = observation["congestion"]
+
+
+        action = manual_policy.act(current_location=agent_location, edges=outgoing_edges, congestion=congestion)
 
         observation, reward, dones, truncated, info = env.step(action)
         step = env.env_step
-
-        print(action_map[action % 4])
-        print(env.vehicle_counts)
-        print(env.agent_locations)
-        print(env.dones)
-        print("\n")
 
     total_rewards = []
     for rewards in env.rewards.values():

@@ -64,7 +64,7 @@ class RoutingEnv(gym.Env):
 
         info = {}
 
-        return self.observations, info
+        return self.observations[0], info
 
     def step(self, action):
         current_location = self.agent_locations[self.current_agent]
@@ -101,7 +101,6 @@ class RoutingEnv(gym.Env):
         for route in self.congestion_per_route:
             congestion = -1 * np.matmul(self.traffic_params[route], np.transpose(self.vehicle_counts[route])) 
             self.congestion_per_route[route].append(congestion) # Might be better to move metric tracking to separate method  
-        
         # Action space is split in 2:
         # [0, 3] - Manually driving
         # [4, 7] - Autonomous driving
@@ -122,7 +121,6 @@ class RoutingEnv(gym.Env):
         truncated = None    
         self.past_action[self.current_agent] = {"location": road_to_next_location, "action": action} 
         
-        print(self.agent_locations, self.target)
         if self.agent_locations[self.current_agent] == self.target:
             self.dones[self.current_agent] = True
             #self.past_action[self.current_agent] = None   
@@ -164,7 +162,7 @@ class RoutingEnv(gym.Env):
             return True
         if action_direction == 1 and (current_location - self.size) >= 0:
             return True
-        if action_direction == 2 and ((current_location - 1) % self.size) != 0:
+        if action_direction == 2 and ((current_location + 1) % self.size) != 0:
             return True
         if action_direction == 3 and (current_location + self.size) < self.size ** 2:
             return True
