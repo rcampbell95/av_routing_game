@@ -7,10 +7,10 @@ import numpy as np
 
 if __name__ == "__main__":
     network_size = 3
-    env = RoutingEnv(size=network_size, num_agents=50)
+    env = RoutingEnv(size=network_size, num_agents=5)
 
     MAX_EDGES_PER_INTERSECTION = 4
-    MAX_STEPS = 100000
+    MAX_STEPS = 100
 
     observations, info = env.reset()
 
@@ -33,7 +33,12 @@ if __name__ == "__main__":
 
         observations, reward, dones, truncated, info = env.step(action)
         
-        env.env_step += 1 
+        env.env_step += 1
+
+        #done_count = 0
+        #for agent, done in dones.items(): 
+        #    if done:
+        #        done_count += 1
 
     total_rewards = []
     for rewards in env.rewards.values():

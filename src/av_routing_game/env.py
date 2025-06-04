@@ -20,7 +20,7 @@ class RoutingEnv(gym.Env):
         observation_space = spaces.Dict(
             {
                 "position": spaces.Discrete(self.size ** 2),
-                "congestion": spaces.Box(low=1, high=10.0, shape=(4, 1, 2), dtype=np.int32)
+                "congestion": spaces.Box(low=-10, high=0, shape=(4, 1, 2), dtype=np.int32)
             }
         )
         return observation_space
@@ -39,7 +39,7 @@ class RoutingEnv(gym.Env):
         # (manual_drivers, platoon_vehicles)
 
         self.road_network = self.build_road_network(self.size)
-        self.vehicle_counts = {i: np.array([[1, 1]]) for i in self.road_network.edges()} #   
+        self.vehicle_counts = {i: np.array([[0, 0]]) for i in self.road_network.edges()} #   
         self.traffic_params = {i: None for i in self.road_network.edges()}
         
         for edge in self.road_network.edges():
@@ -75,7 +75,6 @@ class RoutingEnv(gym.Env):
         # First test with fixed traffic
         congestion = np.random.random([4, 1, 2])
 
-
         observation = {
           "position": current_location,
           "congestion": congestion
@@ -108,8 +107,8 @@ class RoutingEnv(gym.Env):
             return self.observations, 0, self.dones, None, {}   
         
         for route in self.congestion_per_route:
-            congestion = -1 * np.matmul(self.traffic_params[route], np.transpose(self.vehicle_counts[route])) 
-            self.congestion_per_route[route].append(congestion) # Might be better to move metric tracking to separate method  
+            congestion_at_edge = -1 * np.matmul(self.traffic_params[route], np.transpose(self.vehicle_counts[route])) 
+            self.congestion_per_route[route].append(congestion_at_edge) # Might be better to move metric tracking to separate method  
         # Action space is split in 2:
         # [0, 3] - Manually driving
         # [4, 7] - Autonomous driving
@@ -133,7 +132,7 @@ class RoutingEnv(gym.Env):
                 
         if not self.dones[self.current_agent]:
             self.agent_locations[self.current_agent] = next_location
-            congestion = np.random.random([4, 1, 2]) # TODO: Return actual congestion on route
+            congestion = self.route_congestions_at_intersection(next_location)
 
             self.observations[self.current_agent] = {
               "position": next_location,
@@ -190,3 +189,23 @@ class RoutingEnv(gym.Env):
 
         if action_direction == 3:
             return location + self.size
+        
+    def route_congestions_at_intersection(self, agent_location: int) -> np.ndarray:
+        """
+        Return congestion array of size (4, 1, 2) with congestion per outgoing route (edge)
+        at an intersection     
+        """
+        congestion = np.full((4, 1, 2), fill_value=np.inf)
+        num_actions = 4
+
+        for edge in self.road_network.edges(agent_location):
+            edge = edge if edge[0] < edge[1] else (edge[1], edge[0])
+            edge_congestion = self.vehicle_counts[edge] * self.traffic_params[edge]
+            
+            for action_idx in range(num_actions):
+                if self.edge_transition(agent_location, action_idx) in edge:
+                    congestion[action_idx] = edge_congestion
+
+        return congestion
+
+
