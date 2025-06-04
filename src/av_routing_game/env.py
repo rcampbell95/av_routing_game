@@ -8,12 +8,15 @@ import networkx as nx
 
 
 class RoutingEnv(gym.Env):
-    def __init__(self, render_mode=None, target=None, size=2, num_agents=10):
+    def __init__(self, render_mode=None, target=None, 
+                 size=2, num_agents=10, 
+                 start_time_generator=lambda agent_id, num_agents: int(np.random.normal(num_agents // 2, num_agents // 10))):
         if not target:
             self.target = size ** 2 - 1
         self.size = size
         self.num_agents = num_agents
         self.current_agent = 0
+        self.start_time_generator = start_time_generator
 
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent):
@@ -51,7 +54,7 @@ class RoutingEnv(gym.Env):
         self.dones = {i: False for i in range(self.num_agents)}
         self.past_action = {i: None for i in range(self.num_agents)}
         self.env_step = 0
-        self.start_time = {i: int(np.random.normal(self.num_agents // 2, self.num_agents // 10)) for i in range(self.num_agents)}
+        self.start_time = {i: self.start_time_generator(i, self.num_agents) for i in range(self.num_agents)}
         self.congestion_per_route = {i: [] for i in self.road_network.edges()}   
         self.observations = {
             i: {

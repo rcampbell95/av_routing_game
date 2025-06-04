@@ -6,11 +6,11 @@ import numpy as np
 
 
 if __name__ == "__main__":
-    network_size = 3
-    env = RoutingEnv(size=network_size, num_agents=5)
+    network_size = 5
+    env = RoutingEnv(size=network_size, num_agents=100)
 
     MAX_EDGES_PER_INTERSECTION = 4
-    MAX_STEPS = 100
+    MAX_STEPS = 100000
 
     observations, info = env.reset()
 
@@ -44,6 +44,7 @@ if __name__ == "__main__":
     for rewards in env.rewards.values():
         total_rewards.append(sum(rewards))
 
+    print("Steps elapsed in simulation:", env.env_step)
 
     plt.bar(env.rewards.keys(), sorted(total_rewards, reverse=True))
     plt.savefig("total_reward.png")
