@@ -64,7 +64,9 @@ class RoutingEnv(gym.Env):
 
         info = {}
 
-        return self.observations[0], info
+        self.action_counts = {i: {i: 0 for i in range(4)} for i in range(self.num_agents)}
+
+        return self.observations, info
 
     def step(self, action):
         current_location = self.agent_locations[self.current_agent]
@@ -73,8 +75,9 @@ class RoutingEnv(gym.Env):
         # First test with fixed traffic
         congestion = np.random.random([4, 1, 2])
 
+
         observation = {
-          "position": self.agent_locations[self.current_agent],
+          "position": current_location,
           "congestion": congestion
         }
 
@@ -92,11 +95,17 @@ class RoutingEnv(gym.Env):
             # The current agent is done
             # If the current step is less than the agent start time
             # If the action is invalid
-        if self.dones[self.current_agent] or self.env_step < self.start_time[self.current_agent] or not self.validate_action(current_location, action):
+        current_agent_done = self.dones[self.current_agent]
+        agent_waiting= self.env_step < self.start_time[self.current_agent]
+        invalid_action = not self.validate_action(current_location, action)
+        if current_agent_done or agent_waiting or invalid_action:
             self.current_agent = (self.current_agent + 1) % self.num_agents
-            self.env_step += 1
-            self.dones[self.current_agent] = self.dones[self.current_agent] or self.agent_locations[self.current_agent] == self.target 
-            return observation, 0, self.dones, None, {}   
+            
+            self.action_counts[self.current_agent][action] += 1
+
+            self.observations[self.current_agent] = observation
+
+            return self.observations, 0, self.dones, None, {}   
         
         for route in self.congestion_per_route:
             congestion = -1 * np.matmul(self.traffic_params[route], np.transpose(self.vehicle_counts[route])) 
@@ -106,6 +115,7 @@ class RoutingEnv(gym.Env):
         # [4, 7] - Autonomous driving
 
         next_location = self.edge_transition(current_location, action)
+
         road_to_next_location = tuple(sorted([current_location, next_location]))
         if action // 4 == 0:
             self.vehicle_counts[road_to_next_location][0][0] += 1
@@ -120,26 +130,23 @@ class RoutingEnv(gym.Env):
         info = {}
         truncated = None    
         self.past_action[self.current_agent] = {"location": road_to_next_location, "action": action} 
-        
-        if self.agent_locations[self.current_agent] == self.target:
-            self.dones[self.current_agent] = True
-            #self.past_action[self.current_agent] = None   
-        
-        observation = {}    
+                
         if not self.dones[self.current_agent]:
             self.agent_locations[self.current_agent] = next_location
-            congestion = np.random.random([4, 1, 2])
+            congestion = np.random.random([4, 1, 2]) # TODO: Return actual congestion on route
 
-            observation = {
-              "position": self.agent_locations[self.current_agent],
+            self.observations[self.current_agent] = {
+              "position": next_location,
               "congestion": congestion 
             }
 
+            if next_location == self.target:
+                self.dones[self.current_agent] = True
+
         self.rewards[self.current_agent].append(reward)
         self.current_agent = (self.current_agent + 1) % self.num_agents
-        self.env_step += 1 
  
-        return observation, reward, self.dones, truncated, info 
+        return self.observations, reward, self.dones, truncated, info 
 
     def build_road_network(self, size: int) -> nx.Graph:
         graph = nx.Graph()
@@ -171,7 +178,7 @@ class RoutingEnv(gym.Env):
     
     def edge_transition(self, location: int, action: int) -> int:
         action_direction = action % 4
-
+ 
         if action_direction == 0:
             return location - 1 
 
