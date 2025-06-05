@@ -5,18 +5,19 @@ import gymnasium as gym
 from gymnasium import spaces
 import networkx as nx
 
-
-
 class RoutingEnv(gym.Env):
     def __init__(self, render_mode=None, target=None, 
-                 size=2, num_agents=10, 
-                 start_time_generator=lambda agent_id, num_agents: int(np.random.normal(num_agents // 2, num_agents // 10))):
+                 size=2, num_agents_mean=100, num_agents_std=20, discount_factor=0.9,
+                 start_time_generator=None):
         if not target:
             self.target = size ** 2 - 1
         self.size = size
-        self.num_agents = num_agents
+        self.num_agents_mean = num_agents_mean
+        self.num_agents_std = num_agents_std
+        self.num_agents = int(np.random.normal(self.num_agents_mean, self.num_agents_std))
+        self.discount_factor = discount_factor
         self.current_agent = 0
-        self.start_time_generator = start_time_generator
+        self.start_time_generator = lambda agent_id, num_agents: int(np.random.normal(num_agents // 2, num_agents // 10)) if start_time_generator is None else start_time_generator
 
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent):

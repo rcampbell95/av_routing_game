@@ -7,7 +7,7 @@ import numpy as np
 
 if __name__ == "__main__":
     network_size = 5
-    env = RoutingEnv(size=network_size, num_agents=100)
+    env = RoutingEnv(size=network_size, num_agents_mean=100, num_agents_std=20, discount_factor=0.9)
 
     MAX_EDGES_PER_INTERSECTION = 4
     MAX_STEPS = 100000
@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     action_map = {0: "left", 1: "up", 2: "right", 3: "down"}
 
-    manual_policy = BeelinePolicy(target=network_size ** 2 - 1, grid_size=network_size)
+    manual_policy = BeelinePolicy(target=network_size ** 2 - 1, grid_size=network_size, discount_factor=env.discount_factor)
 
     while not all(dones.values()) and env.env_step < MAX_STEPS:
         current_agent = env.current_agent
