@@ -46,16 +46,17 @@ if __name__ == "__main__":
 
     print("Steps elapsed in simulation:", env.env_step)
 
+    plt.figure(figsize=(10, 10))
     plt.bar(env.rewards.keys(), sorted(total_rewards, reverse=True))
     plt.savefig("total_reward.png")
-    plt.show()
 
+    plt.figure(figsize=(10, 10))
     plt.scatter(env.start_time.values(), total_rewards)
     plt.xlabel("start time")
     plt.ylabel('total reward')
     plt.savefig("total_reward_wrt_start_time.png")
-    plt.show()  
 
+    plt.figure(figsize=(10, 10))
     for route, congestion_per_route in env.congestion_per_route.items():
         #if np.mean(congestion_per_route) < -10:
         if np.min(congestion_per_route) != np.max(congestion_per_route):
