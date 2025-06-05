@@ -12,13 +12,13 @@ if __name__ == "__main__":
     use_dqn = True  # Set to True to use trained DQN policy, False for manual policy selection
     
     MAX_EDGES_PER_INTERSECTION = 4
-    MAX_STEPS = 100000
+    MAX_STEPS = 3000
     EPISODES = 100
 
     total_reward_per_episode = np.zeros(EPISODES)
     for episode in tqdm(range(EPISODES)):
 
-        env = RoutingEnv(size=network_size, num_agents_mean=1000, num_agents_std=20, 
+        env = RoutingEnv(size=network_size, num_agents_mean=10, num_agents_std=3, 
                      discount_factor=0.9, flow_direction=flow_direction)
 
         observations, info = env.reset()
@@ -34,7 +34,7 @@ if __name__ == "__main__":
     
         # Alternative policies:
         # manual_policy = Greedy(target=network_size ** 2 - 1, grid_size=network_size, discount_factor=env.discount_factor)
-        # manual_policy = A_star(target=network_size ** 2 - 1, grid_size=network_size, discount_factor=env.discount_factor)
+        #manual_policy = A_star(target=network_size ** 2 - 1, grid_size=network_size, discount_factor=env.discount_factor)
         
         dones = {0: False}
         actions = {0: 0, 1: 0}

@@ -53,7 +53,7 @@ class DQN(nn.Module):
         return self.network(x)
 
 class DQNAgent:
-    def __init__(self, state_size, action_size=2, lr=0.001, gamma=0.95, epsilon=1.0, epsilon_decay=0.995, epsilon_min=0.01):
+    def __init__(self, state_size, action_size=2, lr=2e-4, gamma=0.95, epsilon=1.0, epsilon_decay=0.995, epsilon_min=0.01):
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=10000)
@@ -104,6 +104,8 @@ class DQNAgent:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
+        return loss
     
     def save(self, filename):
         torch.save(self.q_network.state_dict(), filename)
@@ -190,9 +192,9 @@ def train_dqn():
     state_size = 10  # Features from get_state_features
     agent = DQNAgent(state_size)
     
-    episodes = 500
+    episodes = 1000
     max_steps_per_episode = 3000
-    target_update_freq = 10
+    target_update_freq = 50
     
     scores = []
     experiences_collected = 0
@@ -269,8 +271,9 @@ def train_dqn():
         # Train the agent multiple times per episode
         if episode_experiences > 0:
             training_iterations = max(1, episode_experiences // 5)  # Train more frequently
-            for _ in range(training_iterations):
-                agent.replay()
+            avg_loss = np.zeros(training_iterations)
+            for train_iter in range(training_iterations):
+                avg_loss[train_iter] = agent.replay()
         
         # Force epsilon decay
         if agent.epsilon > agent.epsilon_min:
@@ -282,7 +285,7 @@ def train_dqn():
         
         if episode % 50 == 0:
             avg_score = np.mean(scores[-50:]) if len(scores) >= 50 else np.mean(scores)
-            print(f"Episode {episode}, Average Score: {avg_score:.2f}, Epsilon: {agent.epsilon:.3f}, Experiences: {experiences_collected}")
+            print(f"Episode {episode}, Average Score: {avg_score:.2f}, Epsilon: {agent.epsilon:.3f}, Experiences: {experiences_collected}, Loss: {avg_loss.mean()}")
     
     # Save the trained model
     os.makedirs("models", exist_ok=True)
