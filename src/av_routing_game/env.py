@@ -8,7 +8,7 @@ import networkx as nx
 class RoutingEnv(gym.Env):
     def __init__(self, render_mode=None, target=None, 
                  size=2, num_agents_mean=100, num_agents_std=20, discount_factor=0.9,
-                 start_time_generator=None):
+                 flow_direction="default", start_time_generator=None):
         if not target:
             self.target = size ** 2 - 1
         self.size = size
@@ -16,6 +16,7 @@ class RoutingEnv(gym.Env):
         self.num_agents_std = num_agents_std
         self.num_agents = int(np.random.normal(self.num_agents_mean, self.num_agents_std))
         self.discount_factor = discount_factor
+        self.flow_direction = flow_direction
         self.current_agent = 0
         self.start_time_generator = lambda agent_id, num_agents: int(np.random.normal(num_agents // 2, num_agents // 10)) if start_time_generator is None else start_time_generator
 
@@ -38,10 +39,28 @@ class RoutingEnv(gym.Env):
 
 
     def reset(self):
-        self.agent_locations = {i: 0 for i in range(self.num_agents)} 
-          # Change to account for edges, not vertices
-        # (manual_drivers, platoon_vehicles)
-
+        # Assign start and target positions based on flow direction
+        self.agent_start_positions = {}
+        self.agent_targets = {}
+        
+        for i in range(self.num_agents):
+            if self.flow_direction == "default":
+                # All agents: top-left (0) to bottom-right (size^2 - 1)
+                self.agent_start_positions[i] = 0
+                self.agent_targets[i] = self.size ** 2 - 1
+            elif self.flow_direction == "both":
+                # Random choice: either top-left to bottom-right OR top-right to bottom-left
+                if np.random.choice([True, False]):
+                    # Top-left to bottom-right
+                    self.agent_start_positions[i] = 0
+                    self.agent_targets[i] = self.size ** 2 - 1
+                else:
+                    # Top-right to bottom-left
+                    self.agent_start_positions[i] = self.size - 1  # Top-right corner
+                    self.agent_targets[i] = (self.size - 1) * self.size  # Bottom-left corner
+        
+        self.agent_locations = self.agent_start_positions.copy()
+        
         self.road_network = self.build_road_network(self.size)
         self.vehicle_counts = {i: np.array([[0, 0]]) for i in self.road_network.edges()} #   
         self.traffic_params = {i: None for i in self.road_network.edges()}
@@ -59,7 +78,7 @@ class RoutingEnv(gym.Env):
         self.congestion_per_route = {i: [] for i in self.road_network.edges()}   
         self.observations = {
             i: {
-            "position": 0,
+            "position": self.agent_start_positions[i],
             "congestion": self.observation_space(0)["congestion"].sample() 
             } for i in range(self.num_agents)
         }
@@ -143,7 +162,7 @@ class RoutingEnv(gym.Env):
               "congestion": congestion 
             }
 
-            if next_location == self.target:
+            if next_location == self.agent_targets[self.current_agent]:
                 self.dones[self.current_agent] = True
 
         self.rewards[self.current_agent].append(reward)
