@@ -1,5 +1,5 @@
 from av_routing_game.env import RoutingEnv
-from av_routing_game.policies import BeelinePolicy, A_star, Greedy
+from av_routing_game.policies import BeelinePolicy, A_star, Greedy, DQNPolicy
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -8,6 +8,7 @@ import numpy as np
 if __name__ == "__main__":
     network_size = 5
     flow_direction = "both"  # Change this to "default" for single direction flow
+    use_dqn = True  # Set to True to use trained DQN policy, False for manual policy selection
     
     env = RoutingEnv(size=network_size, num_agents_mean=100, num_agents_std=20, 
                      discount_factor=0.9, flow_direction=flow_direction)
@@ -23,10 +24,16 @@ if __name__ == "__main__":
 
     action_map = {0: "left", 1: "up", 2: "right", 3: "down"}
 
-    # Create policy with default target (will be overridden with agent-specific targets)
-    manual_policy = BeelinePolicy(target=network_size ** 2 - 1, grid_size=network_size, discount_factor=env.discount_factor)
+    # Create policy based on configuration
+    if use_dqn:
+        manual_policy = DQNPolicy(target=network_size ** 2 - 1, grid_size=network_size, discount_factor=env.discount_factor)
+        print("Using DQN policy (chooses between Greedy and A*)")
+    else:
+        # Create policy with default target (will be overridden with agent-specific targets)
+        manual_policy = BeelinePolicy(target=network_size ** 2 - 1, grid_size=network_size, discount_factor=env.discount_factor)
+        print("Using manual policy selection")
     
-    # Alternative policies you can test:
+    # Alternative policies:
     # manual_policy = Greedy(target=network_size ** 2 - 1, grid_size=network_size, discount_factor=env.discount_factor)
     # manual_policy = A_star(target=network_size ** 2 - 1, grid_size=network_size, discount_factor=env.discount_factor)
 

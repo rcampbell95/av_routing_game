@@ -1,7 +1,9 @@
 from typing import List
 import heapq
-
+import torch
+import torch.nn as nn
 import numpy as np
+import os
 
 class Policy:
     def __init__(self, target: int, grid_size: int, discount_factor: float = 1.0):
@@ -245,3 +247,100 @@ class Greedy(Policy):
         elif action == 3:  # down
             return (location + self.grid_size) < self.grid_size ** 2
         return False
+
+class DQN(nn.Module):
+    def __init__(self, state_size, action_size=2, hidden_size=64):
+        super(DQN, self).__init__()
+        self.network = nn.Sequential(
+            nn.Linear(state_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, action_size)
+        )
+    
+    def forward(self, x):
+        return self.network(x)
+
+class DQNPolicy(Policy):
+    def __init__(self, target: int, grid_size: int, discount_factor: float = 1.0, model_path: str = "models/dqn_policy_selector.pth"):
+        super().__init__(target, grid_size, discount_factor)
+        
+        # Initialize the underlying policies
+        self.greedy_policy = Greedy(target, grid_size, discount_factor)
+        self.astar_policy = A_star(target, grid_size, discount_factor)
+        self.policies = [self.greedy_policy, self.astar_policy]
+        
+        # Load the DQN model
+        self.state_size = 10
+        self.dqn = DQN(self.state_size)
+        
+        if os.path.exists(model_path):
+            self.dqn.load_state_dict(torch.load(model_path))
+            self.dqn.eval()
+            print(f"DQN model loaded from {model_path}")
+        else:
+            print(f"Warning: DQN model not found at {model_path}. Using random policy selection.")
+            self.dqn = None
+    
+    def act(self, current_location: int, edges: List[tuple[int, int]], congestion: np.ndarray, target: int = None) -> int:
+        # Use provided target or fall back to instance target
+        actual_target = target if target is not None else self.target
+        
+        # Get state features for DQN
+        state_features = self._get_state_features(current_location, actual_target, congestion)
+        
+        # Choose policy using DQN
+        if self.dqn is not None:
+            with torch.no_grad():
+                state_tensor = torch.FloatTensor(state_features).unsqueeze(0)
+                q_values = self.dqn(state_tensor)
+                policy_choice = torch.argmax(q_values).item()
+        else:
+            # Fallback to random selection if model not loaded
+            policy_choice = np.random.choice([0, 1])
+        
+        # Execute chosen policy
+        chosen_policy = self.policies[policy_choice]
+        
+        # Call the chosen policy's act method
+        if isinstance(chosen_policy, (Greedy, A_star)):
+            return chosen_policy.act(current_location, congestion, target=actual_target)
+        else:  # BeelinePolicy case (shouldn't happen but just in case)
+            return chosen_policy.act(current_location, edges, congestion, target=actual_target)
+    
+    def _get_state_features(self, agent_pos: int, target_pos: int, congestion: np.ndarray):
+        """Extract state features for DQN input (matches dqn.py implementation)"""
+        # Position features
+        pos_x = agent_pos % self.grid_size
+        pos_y = agent_pos // self.grid_size
+        target_x = target_pos % self.grid_size
+        target_y = target_pos // self.grid_size
+        
+        # Distance features
+        manhattan_dist = abs(pos_x - target_x) + abs(pos_y - target_y)
+        euclidean_dist = np.sqrt((pos_x - target_x)**2 + (pos_y - target_y)**2)
+        max_possible_distance = 2 * (self.grid_size - 1)  # Max Manhattan distance in grid
+        
+        # Congestion features (simplified)
+        congestion_sum = np.sum(congestion)
+        congestion_max = np.max(congestion) if len(congestion) > 0 else 0
+        congestion_mean = np.mean(congestion) if len(congestion) > 0 else 0
+        
+        # Progress feature - how close are we to target compared to starting distance
+        start_pos = 0 if target_pos == self.grid_size ** 2 - 1 else self.grid_size ** 2 - 1  # Assume opposite corners
+        start_x = start_pos % self.grid_size
+        start_y = start_pos // self.grid_size
+        initial_dist = abs(start_x - target_x) + abs(start_y - target_y)
+        progress = 1.0 - (manhattan_dist / max(initial_dist, 1))
+        
+        return np.array([
+            pos_x / self.grid_size, pos_y / self.grid_size,  # Normalized position
+            target_x / self.grid_size, target_y / self.grid_size,  # Normalized target
+            manhattan_dist / max_possible_distance,  # Normalized Manhattan distance
+            euclidean_dist / (self.grid_size * np.sqrt(2)),  # Normalized Euclidean distance
+            min(congestion_sum / 50.0, 1.0),  # Normalized congestion sum (capped at 1)
+            min(congestion_max / 20.0, 1.0),   # Normalized congestion max (capped at 1)
+            min(congestion_mean / 20.0, 1.0),  # Normalized congestion mean (capped at 1)
+            max(0.0, min(1.0, progress))  # Progress toward goal (clamped 0-1)
+        ])

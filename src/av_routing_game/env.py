@@ -60,7 +60,7 @@ class RoutingEnv(gym.Env):
                     self.agent_targets[i] = (self.size - 1) * self.size  # Bottom-left corner
         
         self.agent_locations = self.agent_start_positions.copy()
-        
+
         self.road_network = self.build_road_network(self.size)
         self.vehicle_counts = {i: np.array([[0, 0]]) for i in self.road_network.edges()} #   
         self.traffic_params = {i: None for i in self.road_network.edges()}
