@@ -18,7 +18,7 @@ class BeelinePolicy(Policy):
     def __init__(self, target: int, grid_size: int, discount_factor: float = 1.0):
         super().__init__(target, grid_size, discount_factor)
 
-    def act(self, current_location: int, edges: List[tuple[int, int]], congestion: np.ndarray, target: int = None) -> int:
+    def act(self, current_location: int, congestion: np.ndarray, target: int = None, edges: List[tuple[int, int]]=None) -> int:
         # Use provided target or fall back to instance target
         actual_target = target if target is not None else self.target
         
@@ -78,7 +78,7 @@ class BeelinePolicy(Policy):
         return 2
 
 class A_star(Policy):
-    def act(self, current_location: int, congestion: np.ndarray, target: int = None) -> int:
+    def act(self, current_location: int, congestion: np.ndarray, target: int = None, edges: List[tuple[int, int]] = None) -> int:
         """
         A* pathfinding considering congestion as edge weights.
         Returns the next action to take towards the target.
@@ -179,7 +179,7 @@ class A_star(Policy):
         return 2  # default
 
 class Greedy(Policy):
-    def act(self, current_location: int, congestion: np.ndarray, target: int = None) -> int:
+    def act(self, current_location: int, congestion: np.ndarray, target: int = None, edges: List[tuple[int, int]]=None) -> int:
         """
         Greedy policy: moves towards goal preferring less congested routes.
         If both right and down moves are towards the goal, picks the one with lower congestion.
